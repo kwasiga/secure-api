@@ -1,4 +1,4 @@
-# secure-api
+# Secure-API
 
 A secure REST API written in Go with JWT-based authentication and PostgreSQL persistence.
 
