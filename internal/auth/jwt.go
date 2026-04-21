@@ -1,3 +1,4 @@
+// Package auth provides JWT generation/validation and password hashing utilities.
 package auth
 
 import (
@@ -7,17 +8,16 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Claims represents the data embedded in the JWT payload
+// Claims represents the data embedded in the JWT payload.
 type Claims struct {
 	UserID int32  `json:"user_id"`
 	Role   string `json:"role"`
 	jwt.RegisteredClaims
 }
 
-// GenerateTokens creates and signs an access token (15 min) and refresh token (7 days)
-// Returns (accessToken, refreshToken, error)
+// GenerateTokens creates and signs an access token (15 min) and a refresh token (7 days),
+// both signed with HS256 using the provided secret.
 func GenerateTokens(userID int32, role string, secret string) (string, string, error) {
-
 	claims := &Claims{
 		UserID: userID,
 		Role:   role,
@@ -26,9 +26,7 @@ func GenerateTokens(userID int32, role string, secret string) (string, string, e
 		},
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
-	accessToken, err := token.SignedString([]byte(secret))
+	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(secret))
 	if err != nil {
 		return "", "", err
 	}
@@ -49,6 +47,7 @@ func GenerateTokens(userID int32, role string, secret string) (string, string, e
 	return accessToken, refreshToken, nil
 }
 
+// ValidateToken parses and validates a signed JWT string, returning the embedded Claims.
 func ValidateToken(tokenString string, secret string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {

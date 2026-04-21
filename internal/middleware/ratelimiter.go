@@ -9,11 +9,14 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// client tracks a per-IP rate limiter and the last time that IP was seen.
 type client struct {
 	limiter  *rate.Limiter
 	lastSeen time.Time
 }
 
+// RateLimiter is a per-IP token-bucket rate limiter.
+// Inactive clients are evicted after 3 minutes to prevent unbounded memory growth.
 type RateLimiter struct {
 	mu      sync.Mutex
 	clients map[string]*client
@@ -21,6 +24,8 @@ type RateLimiter struct {
 	burst   int
 }
 
+// NewRateLimiter creates a RateLimiter that allows r requests per second with a
+// burst capacity of burst. A background goroutine evicts idle clients every minute.
 func NewRateLimiter(r, burst int) *RateLimiter {
 	rl := &RateLimiter{
 		clients: make(map[string]*client),
@@ -44,6 +49,7 @@ func NewRateLimiter(r, burst int) *RateLimiter {
 	return rl
 }
 
+// getClient returns the rate.Limiter for the given IP, creating one if needed.
 func (rl *RateLimiter) getClient(ip string) *rate.Limiter {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
@@ -55,6 +61,8 @@ func (rl *RateLimiter) getClient(ip string) *rate.Limiter {
 	return rl.clients[ip].limiter
 }
 
+// Limit is a chi-compatible middleware that enforces the per-IP rate limit.
+// Returns 429 Too Many Requests when the token bucket is empty.
 func (rl *RateLimiter) Limit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip, _, err := net.SplitHostPort(r.RemoteAddr)
